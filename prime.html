@@ -48,22 +48,22 @@
       text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
     }
     .score-board {
-      font-size: 28px;
+      font-size: 26px;
       color: #ffca28;
     }
     .timer-board {
-      font-size: 36px;
+      font-size: 34px;
       color: #76ff03;
     }
     .lives-board {
-      font-size: 28px;
+      font-size: 26px;
       color: #ff5252;
       letter-spacing: 4px;
     }
     .modal-overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.78);
       backdrop-filter: blur(4px);
       display: flex;
       justify-content: center;
@@ -74,9 +74,9 @@
       background: #fff8e1;
       border: 5px solid #ffb300;
       border-radius: 20px;
-      padding: 24px 30px;
+      padding: 24px 28px;
       width: 90%;
-      max-width: 440px;
+      max-width: 480px;
       text-align: center;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
@@ -87,31 +87,47 @@
     }
     .rules-list {
       text-align: left;
-      font-size: 16px;
+      font-size: 15px;
       color: #3e2723;
       line-height: 1.6;
       margin-bottom: 20px;
-      background: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.7);
       padding: 12px 16px;
       border-radius: 12px;
     }
     .rules-list li {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+    }
+    .mode-select-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #5d4037;
+      margin-bottom: 12px;
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
     .start-btn {
       background: linear-gradient(180deg, #ff9800, #e65100);
       color: white;
       border: none;
-      font-size: 22px;
+      font-size: 18px;
       font-weight: bold;
-      padding: 12px 36px;
+      padding: 12px 24px;
       border-radius: 50px;
       cursor: pointer;
-      box-shadow: 0 6px 0 #bf360c;
+      box-shadow: 0 5px 0 #bf360c;
       transition: transform 0.1s;
     }
+    .start-btn.advanced {
+      background: linear-gradient(180deg, #e91e63, #ad1457);
+      box-shadow: 0 5px 0 #880e4f;
+    }
     .start-btn:active {
-      transform: translateY(4px);
+      transform: translateY(3px);
       box-shadow: 0 2px 0 #bf360c;
     }
     .hide {
@@ -125,24 +141,32 @@
   <canvas id="gameCanvas"></canvas>
 
   <div class="hud">
-    <div class="score-board">得分: <span id="scoreText">0</span></div>
+    <div class="score-board">
+      得分: <span id="scoreText">0</span>
+      <span id="modeTag" style="font-size: 14px; margin-left: 6px; color: #b0bec5; font-weight: normal;"></span>
+    </div>
     <div class="timer-board">⏱ <span id="timeText">60</span>s</div>
     <div class="lives-board" id="livesText">❤❤❤</div>
   </div>
 
-  <!-- 規則與開始面板 -->
+  <!-- 規則與模式選擇面板 -->
   <div id="startModal" class="modal-overlay">
     <div class="modal-card">
       <h2>🍉 質數合數切切樂 🍉</h2>
       <div class="rules-list">
         <ul>
-          <li>🔪 <b>合數（可分解）</b>：滑動手指<b>切開它</b>獲取分數！</li>
-          <li>💣 <b>質數（不可分）</b>：<b>千萬別切</b>！切到扣 1 顆心（共 3 顆）。</li>
+          <li>⚠️ <b>水果外觀完全相同，請專注認清上面的數字！</b></li>
+          <li>🔪 <b>合數（可分解）</b>：滑動手指<b>切開它</b> (+10分)！</li>
+          <li>💣 <b>質數（不可分）</b>：<b>千萬別切</b>！切到扣 1 條命。</li>
           <li>⭐ <b>數字「1」</b>：既非質數也非合數，切到<b>延長時間 +5 秒</b>！</li>
-          <li>⏳ 限時 60 秒，生命扣完或時間到即結算。</li>
+          <li>⏳ 3 條命，限時 60 秒！請選擇挑戰難度：</li>
         </ul>
       </div>
-      <button id="startBtn" class="start-btn">開始挑戰</button>
+      <div class="mode-select-title">選擇挑戰模式</div>
+      <div class="btn-group">
+        <button class="start-btn" onclick="startGame(50)">🌱 基礎模式 (1~50)</button>
+        <button class="start-btn advanced" onclick="startGame(100)">🔥 進階模式 (1~100)</button>
+      </div>
     </div>
   </div>
 
@@ -150,8 +174,11 @@
   <div id="endModal" class="modal-overlay hide">
     <div class="modal-card">
       <h2 id="endTitle">遊戲結束</h2>
-      <p style="font-size: 20px; color: #4e342e; margin: 15px 0;">最終得分：<b id="finalScore" style="color: #e65100; font-size: 32px;">0</b></p>
-      <button id="restartBtn" class="start-btn">再玩一次</button>
+      <p style="font-size: 20px; color: #4e342e; margin: 15px 0;">最終得分：<b id="finalScore" style="color: #e65100; font-size: 34px;">0</b></p>
+      <div class="btn-group">
+        <button class="start-btn" onclick="startGame(50)">🌱 再玩一次 (1~50)</button>
+        <button class="start-btn advanced" onclick="startGame(100)">🔥 挑戰進階 (1~100)</button>
+      </div>
     </div>
   </div>
 </div>
@@ -184,12 +211,12 @@
       osc.stop(now + 0.12);
     } else if (type === 'bomb') {
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(120, now);
-      osc.frequency.linearRampToValueAtTime(30, now + 0.4);
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.linearRampToValueAtTime(25, now + 0.45);
       gain.gain.setValueAtTime(0.8, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      gain.gain.linearRampToValueAtTime(0, now + 0.45);
       osc.start(now);
-      osc.stop(now + 0.4);
+      osc.stop(now + 0.45);
     } else if (type === 'bonus') {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(523.25, now);
@@ -202,8 +229,8 @@
     }
   }
 
-  // 數學工具函數
-  function isPrime(n) {
+  // 質數判斷函數
+  function checkPrime(n) {
     if (n <= 1) return false;
     for (let i = 2; i * i <= n; i++) {
       if (n % i === 0) return false;
@@ -217,6 +244,7 @@
   const scoreText = document.getElementById('scoreText');
   const timeText = document.getElementById('timeText');
   const livesText = document.getElementById('livesText');
+  const modeTag = document.getElementById('modeTag');
   const startModal = document.getElementById('startModal');
   const endModal = document.getElementById('endModal');
   const finalScore = document.getElementById('finalScore');
@@ -230,42 +258,54 @@
   window.addEventListener('resize', resize);
   resize();
 
-  let gameState = 'START'; // START, PLAYING, GAMEOVER
+  let gameState = 'START';
   let score = 0;
   let lives = 3;
   let timeLeft = 60;
   let timerInterval = null;
+  let maxNumber = 50; // 當前難度上限 (50 或 100)
 
   let targets = [];
   let particles = [];
   let slashTrail = [];
 
-  // 水果/目標類別 (已調降上升速度與重力加速度)
+  // 水果外觀顏色庫（完全隨機挑選，無法透過顏色猜題目）
+  const FRUIT_SKINS = [
+    { outer: '#1b5e20', inner: '#d32f2f' }, // 西瓜
+    { outer: '#e65100', inner: '#ff9800' }, // 橘子
+    { outer: '#f57f17', inner: '#ffeb3b' }, // 檸檬
+    { outer: '#4a148c', inner: '#8e24aa' }, // 葡萄/李子
+    { outer: '#33691e', inner: '#8bc34a' }  // 奇異果/青蘋果
+  ];
+
   class Target {
     constructor() {
-      this.radius = 45;
+      this.radius = 46;
       this.x = width * 0.15 + Math.random() * (width * 0.7);
       this.y = height + this.radius;
       this.vx = (Math.random() - 0.5) * 3;
-      this.vy = -(10 + Math.random() * 3.5); // 放慢初速度
-      this.gravity = 0.16;                  // 調低重力，增加滯空時間
+      this.vy = -(10 + Math.random() * 3.5); // 平緩舒適的速度
+      this.gravity = 0.16;                  // 停留時間較長
       this.rotation = 0;
       this.vRot = (Math.random() - 0.5) * 0.04;
       this.isSliced = false;
 
-      // 產生數字邏輯：20% 機率出「1」，40% 質數，40% 合數
+      this.skin = FRUIT_SKINS[Math.floor(Math.random() * FRUIT_SKINS.length)];
+
+      // 數字生成邏輯：
+      // 1 出現機率調降至約 7%（稀有加時道具）
       const rand = Math.random();
-      if (rand < 0.2) {
+      if (rand < 0.07) {
         this.value = 1;
-        this.type = 'SPECIAL';
-      } else if (rand < 0.6) {
-        const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
-        this.value = primes[Math.floor(Math.random() * primes.length)];
-        this.type = 'PRIME';
+        this.type = 'SPECIAL'; // 既非質數也非合數
       } else {
-        const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25];
-        this.value = composites[Math.floor(Math.random() * composites.length)];
-        this.type = 'COMPOSITE';
+        // 其餘隨機抽取 2 ~ maxNumber
+        this.value = Math.floor(Math.random() * (maxNumber - 1)) + 2;
+        if (checkPrime(this.value)) {
+          this.type = 'PRIME'; // 質數 = 不可切
+        } else {
+          this.type = 'COMPOSITE'; // 合數 = 必須切
+        }
       }
     }
 
@@ -281,69 +321,49 @@
       ctx.translate(this.x, this.y);
       ctx.rotate(this.rotation);
 
-      if (this.type === 'PRIME') {
-        // 帶刺黑曜石炸彈
-        ctx.fillStyle = '#212121';
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#f44336';
-        ctx.stroke();
+      // 外皮
+      ctx.fillStyle = this.skin.outer;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fill();
 
-        // 警示刺
-        for (let i = 0; i < 8; i++) {
-          const angle = (i * Math.PI) / 4;
-          const sx = Math.cos(angle) * (this.radius + 8);
-          const sy = Math.sin(angle) * (this.radius + 8);
-          ctx.fillStyle = '#ff1744';
-          ctx.beginPath();
-          ctx.arc(sx, sy, 4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else if (this.type === 'SPECIAL') {
-        // 金光閃閃「1」
-        ctx.fillStyle = '#ffd700';
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = '#ffffff';
-        ctx.stroke();
-      } else {
-        // 水果西瓜綠外皮 + 紅果肉
-        ctx.fillStyle = '#2e7d32';
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#e53935';
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius - 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      // 果肉
+      ctx.fillStyle = this.skin.inner;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius - 6, 0, Math.PI * 2);
+      ctx.fill();
 
-      // 數字標籤
+      // 外圍微高光邊緣
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius - 8, -Math.PI * 0.6, -Math.PI * 0.1);
+      ctx.stroke();
+
+      // 數字顯示（數字較長時自動微調字體大小）
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 36px Arial';
+      const fontSize = this.value >= 100 ? 32 : 36;
+      ctx.font = `900 ${fontSize}px Arial, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 6;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+      ctx.shadowBlur = 8;
       ctx.fillText(this.value, 0, 0);
 
       ctx.restore();
     }
   }
 
-  // 切割碎片粒子
+  // 粒子特效
   class Particle {
-    constructor(x, y, vx, vy, color, text = null) {
+    constructor(x, y, vx, vy, color, text = null, fontSize = 24) {
       this.x = x;
       this.y = y;
       this.vx = vx;
       this.vy = vy;
       this.color = color;
       this.text = text;
+      this.fontSize = fontSize;
       this.alpha = 1;
       this.size = 8 + Math.random() * 8;
     }
@@ -358,7 +378,10 @@
       ctx.globalAlpha = Math.max(0, this.alpha);
       if (this.text) {
         ctx.fillStyle = this.color;
-        ctx.font = 'bold 24px Arial';
+        ctx.font = `bold ${this.fontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.85)';
+        ctx.shadowBlur = 6;
         ctx.fillText(this.text, this.x, this.y);
       } else {
         ctx.fillStyle = this.color;
@@ -370,7 +393,7 @@
     }
   }
 
-  function createSplash(x, y, color, count = 12) {
+  function createSplash(x, y, color, count = 14) {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 2 + Math.random() * 8;
@@ -383,7 +406,7 @@
     }
   }
 
-  // 命中判定（線段與圓形交點）
+  // 切割碰撞判定
   function checkLineCircleIntersection(p1, p2, circle) {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
@@ -396,7 +419,6 @@
     return Math.hypot(circle.x - nx, circle.y - ny) <= circle.radius;
   }
 
-  // 觸控與滑鼠事件
   let isPointerDown = false;
 
   function addTrailPoint(x, y) {
@@ -417,23 +439,27 @@
     target.isSliced = true;
 
     if (target.type === 'COMPOSITE') {
+      // 合數：正確切中
       score += 10;
       scoreText.textContent = score;
       playSound('slice');
-      createSplash(target.x, target.y, '#e53935');
+      createSplash(target.x, target.y, target.skin.inner);
+      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#76ff03', '+10 合數！', 26));
     } else if (target.type === 'PRIME') {
+      // 質數：切錯炸彈扣心
       lives--;
       updateLivesDisplay();
       playSound('bomb');
-      createSplash(target.x, target.y, '#ff1744', 24);
-      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ff5252', '質數不可切！-1 ❤'));
+      createSplash(target.x, target.y, '#ff1744', 28);
+      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ff5252', `${target.value} 是質數不可切！-1 ❤`, 26));
       if (lives <= 0) gameOver('生命用盡！');
     } else if (target.type === 'SPECIAL') {
+      // 1：延長時間獎勵
       timeLeft += 5;
       timeText.textContent = timeLeft;
       playSound('bonus');
-      createSplash(target.x, target.y, '#ffeb3b', 20);
-      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ffd700', '1 非質非合！+5 秒'));
+      createSplash(target.x, target.y, '#ffeb3b', 24);
+      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ffd700', '1 非質非合！時間 +5 秒', 26));
     }
   }
 
@@ -441,7 +467,7 @@
     livesText.textContent = '❤'.repeat(Math.max(0, lives));
   }
 
-  // 觸控監聽
+  // 觸控與滑鼠操作監聽
   window.addEventListener('touchstart', (e) => {
     initAudio();
     isPointerDown = true;
@@ -456,7 +482,6 @@
   });
   window.addEventListener('touchend', () => { isPointerDown = false; });
 
-  // 滑鼠監聽
   window.addEventListener('mousedown', (e) => {
     initAudio();
     isPointerDown = true;
@@ -469,7 +494,7 @@
   });
   window.addEventListener('mouseup', () => { isPointerDown = false; });
 
-  // 生成水果波次 (間隔微調為 85 幀，節奏更舒適)
+  // 生成節奏
   let spawnTimer = 0;
   function updateSpawning() {
     spawnTimer++;
@@ -481,7 +506,7 @@
     }
   }
 
-  // 遊戲主迴圈
+  // 主循環
   function loop() {
     ctx.clearRect(0, 0, width, height);
 
@@ -528,9 +553,12 @@
   }
   requestAnimationFrame(loop);
 
-  // 流程控制
-  function startGame() {
+  // 遊戲啟動函數（帶入難度模式）
+  function startGame(limit) {
     initAudio();
+    maxNumber = limit;
+    modeTag.textContent = limit === 50 ? '[基礎 1~50]' : '[進階 1~100]';
+
     score = 0;
     lives = 3;
     timeLeft = 60;
@@ -565,9 +593,6 @@
     finalScore.textContent = score;
     endModal.classList.remove('hide');
   }
-
-  document.getElementById('startBtn').addEventListener('click', startGame);
-  document.getElementById('restartBtn').addEventListener('click', startGame);
 </script>
 </body>
 </html>
