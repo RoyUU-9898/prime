@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>質數合數切切樂 - Prime Slice</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    body {
+      background: #2b1704;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, #5c3818 0%, #2b1704 100%);
+      box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .hud {
+      position: absolute;
+      top: 16px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      font-weight: 900;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    .score-board {
+      font-size: 28px;
+      color: #ffca28;
+    }
+    .timer-board {
+      font-size: 36px;
+      color: #76ff03;
+    }
+    .lives-board {
+      font-size: 28px;
+      color: #ff5252;
+      letter-spacing: 4px;
+    }
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .modal-card {
+      background: #fff8e1;
+      border: 5px solid #ffb300;
+      border-radius: 20px;
+      padding: 24px 30px;
+      width: 90%;
+      max-width: 440px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .modal-card h2 {
+      font-size: 26px;
+      color: #d84315;
+      margin-bottom: 12px;
+    }
+    .rules-list {
+      text-align: left;
+      font-size: 16px;
+      color: #3e2723;
+      line-height: 1.6;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.6);
+      padding: 12px 16px;
+      border-radius: 12px;
+    }
+    .rules-list li {
+      margin-bottom: 8px;
+    }
+    .start-btn {
+      background: linear-gradient(180deg, #ff9800, #e65100);
+      color: white;
+      border: none;
+      font-size: 22px;
+      font-weight: bold;
+      padding: 12px 36px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 6px 0 #bf360c;
+      transition: transform 0.1s;
+    }
+    .start-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #bf360c;
+    }
+    .hide {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <canvas id="gameCanvas"></canvas>
+
+  <div class="hud">
+    <div class="score-board">得分: <span id="scoreText">0</span></div>
+    <div class="timer-board">⏱ <span id="timeText">60</span>s</div>
+    <div class="lives-board" id="livesText">❤❤❤</div>
+  </div>
+
+  <div id="startModal" class="modal-overlay">
+    <div class="modal-card">
+      <h2>🍉 質數合數切切樂 🍉</h2>
+      <div class="rules-list">
+        <ul>
+          <li>🔪 <b>合數（可分解）</b>：滑動手指<b>切開它</b>獲取分數！</li>
+          <li>💣 <b>質數（不可分）</b>：<b>千萬別切</b>！切到扣 1 顆心（共 3 顆）。</li>
+          <li>⭐ <b>數字「1」</b>：既非質數也非合數，切到<b>延長時間 +5 秒</b>！</li>
+          <li>⏳ 限時 60 秒，生命扣完或時間到即結算。</li>
+        </ul>
+      </div>
+      <button id="startBtn" class="start-btn">開始挑戰</button>
+    </div>
+  </div>
+
+  <div id="endModal" class="modal-overlay hide">
+    <div class="modal-card">
+      <h2 id="endTitle">遊戲結束</h2>
+      <p style="font-size: 20px; color: #4e342e; margin: 15px 0;">最終得分：<b id="finalScore" style="color: #e65100; font-size: 32px;">0</b></p>
+      <button id="restartBtn" class="start-btn">再玩一次</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 音效系統 (Web Audio API)
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let actx = null;
+
+  function initAudio() {
+    if (!actx) actx = new AudioCtx();
+    if (actx.state === 'suspended') actx.resume();
+  }
+
+  function playSound(type) {
+    if (!actx) return;
+    const osc = actx.createOscillator();
+    const gain = actx.createGain();
+    osc.connect(gain);
+    gain.connect(actx.destination);
+    const now = actx.currentTime;
+
+    if (type === 'slice') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'bomb') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(120, now);
+      osc.frequency.linearRampToValueAtTime(30, now + 0.4);
+      gain.gain.setValueAtTime(0.8, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } else if (type === 'bonus') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, now);
+      osc.frequency.setValueAtTime(659.25, now + 0.08);
+      osc.frequency.setValueAtTime(783.99, now + 0.16);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+  }
+
+  // 數學工具函數
+  function isPrime(n) {
+    if (n <= 1) return false;
+    for (let i = 2; i * i <= n; i++) {
+      if (n % i === 0) return false;
+    }
+    return true;
+  }
+
+  // 畫布與狀態
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const scoreText = document.getElementById('scoreText');
+  const timeText = document.getElementById('timeText');
+  const livesText = document.getElementById('livesText');
+  const startModal = document.getElementById('startModal');
+  const endModal = document.getElementById('endModal');
+  const finalScore = document.getElementById('finalScore');
+  const endTitle = document.getElementById('endTitle');
+
+  let width, height;
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let gameState = 'START'; // START, PLAYING, GAMEOVER
+  let score = 0;
+  let lives = 3;
+  let timeLeft = 60;
+  let timerInterval = null;
+
+  let targets = [];
+  let particles = [];
+  let slashTrail = [];
+
+  // 水果/目標類別
+  class Target {
+    constructor() {
+      this.radius = 45;
+      this.x = width * 0.15 + Math.random() * (width * 0.7);
+      this.y = height + this.radius;
+      this.vx = (Math.random() - 0.5) * 4;
+      this.vy = -(14 + Math.random() * 5); // 向上初速度
+      this.gravity = 0.28;
+      this.rotation = 0;
+      this.vRot = (Math.random() - 0.5) * 0.06;
+      this.isSliced = false;
+
+      // 產生數字邏輯：20% 機率出「1」，40% 質數，40% 合數
+      const rand = Math.random();
+      if (rand < 0.2) {
+        this.value = 1;
+        this.type = 'SPECIAL'; // 既非質數也非合數
+      } else if (rand < 0.6) {
+        const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
+        this.value = primes[Math.floor(Math.random() * primes.length)];
+        this.type = 'PRIME'; // 質數 = 炸彈
+      } else {
+        const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25];
+        this.value = composites[Math.floor(Math.random() * composites.length)];
+        this.type = 'COMPOSITE'; // 合數 = 可切水果
+      }
+    }
+
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += this.gravity;
+      this.rotation += this.vRot;
+    }
+
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+
+      if (this.type === 'PRIME') {
+        // 帶刺黑曜石炸彈
+        ctx.fillStyle = '#212121';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#f44336';
+        ctx.stroke();
+
+        // 警示刺
+        for (let i = 0; i < 8; i++) {
+          const angle = (i * Math.PI) / 4;
+          const sx = Math.cos(angle) * (this.radius + 8);
+          const sy = Math.sin(angle) * (this.radius + 8);
+          ctx.fillStyle = '#ff1744';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (this.type === 'SPECIAL') {
+        // 金光閃閃「1」
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+      } else {
+        // 水果西瓜綠外皮 + 紅果肉
+        ctx.fillStyle = '#2e7d32';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius - 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 數字標籤
+      ctx.fillStyle = this.type === 'PRIME' ? '#ffffff' : '#ffffff';
+      ctx.font = 'bold 36px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 6;
+      ctx.fillText(this.value, 0, 0);
+
+      ctx.restore();
+    }
+  }
+
+  // 切割碎片粒子
+  class Particle {
+    constructor(x, y, vx, vy, color, text = null) {
+      this.x = x;
+      this.y = y;
+      this.vx = vx;
+      this.vy = vy;
+      this.color = color;
+      this.text = text;
+      this.alpha = 1;
+      this.size = 8 + Math.random() * 8;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.vy += 0.2;
+      this.alpha -= 0.02;
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, this.alpha);
+      if (this.text) {
+        ctx.fillStyle = this.color;
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(this.text, this.x, this.y);
+      } else {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  function createSplash(x, y, color, count = 12) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 8;
+      particles.push(new Particle(
+        x, y,
+        Math.cos(angle) * speed,
+        Math.sin(angle) * speed,
+        color
+      ));
+    }
+  }
+
+  // 命中判定（線段與圓形交點）
+  function checkLineCircleIntersection(p1, p2, circle) {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return false;
+    const u = ((circle.x - p1.x) * dx + (circle.y - p1.y) * dy) / (len * len);
+    const clampedU = Math.max(0, Math.min(1, u));
+    const nx = p1.x + clampedU * dx;
+    const ny = p1.y + clampedU * dy;
+    return Math.hypot(circle.x - nx, circle.y - ny) <= circle.radius;
+  }
+
+  // 觸控與滑鼠事件
+  let isPointerDown = false;
+
+  function addTrailPoint(x, y) {
+    slashTrail.push({ x, y, time: Date.now() });
+    if (slashTrail.length > 1) {
+      const p1 = slashTrail[slashTrail.length - 2];
+      const p2 = slashTrail[slashTrail.length - 1];
+
+      targets.forEach(target => {
+        if (!target.isSliced && checkLineCircleIntersection(p1, p2, target)) {
+          sliceTarget(target);
+        }
+      });
+    }
+  }
+
+  function sliceTarget(target) {
+    target.isSliced = true;
+
+    if (target.type === 'COMPOSITE') {
+      // 合數：正確切開
+      score += 10;
+      scoreText.textContent = score;
+      playSound('slice');
+      createSplash(target.x, target.y, '#e53935');
+    } else if (target.type === 'PRIME') {
+      // 質數：切到爆炸扣命
+      lives--;
+      updateLivesDisplay();
+      playSound('bomb');
+      createSplash(target.x, target.y, '#ff1744', 24);
+      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ff5252', '質數不可切！-1 ❤'));
+      if (lives <= 0) gameOver('生命用盡！');
+    } else if (target.type === 'SPECIAL') {
+      // 1：加時間
+      timeLeft += 5;
+      timeText.textContent = timeLeft;
+      playSound('bonus');
+      createSplash(target.x, target.y, '#ffeb3b', 20);
+      particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ffd700', '1 非質非合！+5 秒'));
+    }
+  }
+
+  function updateLivesDisplay() {
+    livesText.textContent = '❤'.repeat(Math.max(0, lives));
+  }
+
+  // 觸控監聽
+  window.addEventListener('touchstart', (e) => {
+    initAudio();
+    isPointerDown = true;
+    slashTrail = [];
+    const t = e.touches[0];
+    addTrailPoint(t.clientX, t.clientY);
+  });
+  window.addEventListener('touchmove', (e) => {
+    if (!isPointerDown) return;
+    const t = e.touches[0];
+    addTrailPoint(t.clientX, t.clientY);
+  });
+  window.addEventListener('touchend', () => { isPointerDown = false; });
+
+  // 滑鼠監聽
+  window.addEventListener('mousedown', (e) => {
+    initAudio();
+    isPointerDown = true;
+    slashTrail = [];
+    addTrailPoint(e.clientX, e.clientY);
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!isPointerDown) return;
+    addTrailPoint(e.clientX, e.clientY);
+  });
+  window.addEventListener('mouseup', () => { isPointerDown = false; });
+
+  // 生成水果波次
+  let spawnTimer = 0;
+  function updateSpawning() {
+    spawnTimer++;
+    if (spawnTimer % 65 === 0) {
+      const batchCount = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < batchCount; i++) {
+        targets.push(new Target());
+      }
+    }
+  }
+
+  // 遊戲主迴圈
+  function loop() {
+    ctx.clearRect(0, 0, width, height);
+
+    if (gameState === 'PLAYING') {
+      updateSpawning();
+
+      // 更新與繪製目標
+      for (let i = targets.length - 1; i >= 0; i--) {
+        const t = targets[i];
+        t.update();
+        t.draw();
+        if (t.isSliced || t.y > height + 100) {
+          targets.splice(i, 1);
+        }
+      }
+
+      // 更新粒子
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update();
+        p.draw();
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+
+      // 繪製滑動軌跡
+      const now = Date.now();
+      slashTrail = slashTrail.filter(pt => now - pt.time < 150);
+      if (slashTrail.length > 1) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(slashTrail[0].x, slashTrail[0].y);
+        for (let i = 1; i < slashTrail.length; i++) {
+          ctx.lineTo(slashTrail[i].x, slashTrail[i].y);
+        }
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // 流程控制
+  function startGame() {
+    initAudio();
+    score = 0;
+    lives = 3;
+    timeLeft = 60;
+    targets = [];
+    particles = [];
+    slashTrail = [];
+
+    scoreText.textContent = score;
+    timeText.textContent = timeLeft;
+    updateLivesDisplay();
+
+    startModal.classList.add('hide');
+    endModal.classList.add('hide');
+    gameState = 'PLAYING';
+
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (gameState === 'PLAYING') {
+        timeLeft--;
+        timeText.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          gameOver('時間到！');
+        }
+      }
+    }, 1000);
+  }
+
+  function gameOver(title) {
+    gameState = 'GAMEOVER';
+    clearInterval(timerInterval);
+    endTitle.textContent = title;
+    finalScore.textContent = score;
+    endModal.classList.remove('hide');
+  }
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
