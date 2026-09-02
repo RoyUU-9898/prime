@@ -130,6 +130,7 @@
     <div class="lives-board" id="livesText">❤❤❤</div>
   </div>
 
+  <!-- 規則與開始面板 -->
   <div id="startModal" class="modal-overlay">
     <div class="modal-card">
       <h2>🍉 質數合數切切樂 🍉</h2>
@@ -145,6 +146,7 @@
     </div>
   </div>
 
+  <!-- 結束面板 -->
   <div id="endModal" class="modal-overlay hide">
     <div class="modal-card">
       <h2 id="endTitle">遊戲結束</h2>
@@ -238,32 +240,32 @@
   let particles = [];
   let slashTrail = [];
 
-  // 水果/目標類別
+  // 水果/目標類別 (已調降上升速度與重力加速度)
   class Target {
     constructor() {
       this.radius = 45;
       this.x = width * 0.15 + Math.random() * (width * 0.7);
       this.y = height + this.radius;
-      this.vx = (Math.random() - 0.5) * 4;
-      this.vy = -(14 + Math.random() * 5); // 向上初速度
-      this.gravity = 0.28;
+      this.vx = (Math.random() - 0.5) * 3;
+      this.vy = -(10 + Math.random() * 3.5); // 放慢初速度
+      this.gravity = 0.16;                  // 調低重力，增加滯空時間
       this.rotation = 0;
-      this.vRot = (Math.random() - 0.5) * 0.06;
+      this.vRot = (Math.random() - 0.5) * 0.04;
       this.isSliced = false;
 
       // 產生數字邏輯：20% 機率出「1」，40% 質數，40% 合數
       const rand = Math.random();
       if (rand < 0.2) {
         this.value = 1;
-        this.type = 'SPECIAL'; // 既非質數也非合數
+        this.type = 'SPECIAL';
       } else if (rand < 0.6) {
         const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31];
         this.value = primes[Math.floor(Math.random() * primes.length)];
-        this.type = 'PRIME'; // 質數 = 炸彈
+        this.type = 'PRIME';
       } else {
         const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25];
         this.value = composites[Math.floor(Math.random() * composites.length)];
-        this.type = 'COMPOSITE'; // 合數 = 可切水果
+        this.type = 'COMPOSITE';
       }
     }
 
@@ -321,7 +323,7 @@
       }
 
       // 數字標籤
-      ctx.fillStyle = this.type === 'PRIME' ? '#ffffff' : '#ffffff';
+      ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 36px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -415,13 +417,11 @@
     target.isSliced = true;
 
     if (target.type === 'COMPOSITE') {
-      // 合數：正確切開
       score += 10;
       scoreText.textContent = score;
       playSound('slice');
       createSplash(target.x, target.y, '#e53935');
     } else if (target.type === 'PRIME') {
-      // 質數：切到爆炸扣命
       lives--;
       updateLivesDisplay();
       playSound('bomb');
@@ -429,7 +429,6 @@
       particles.push(new Particle(target.x, target.y - 20, 0, -2, '#ff5252', '質數不可切！-1 ❤'));
       if (lives <= 0) gameOver('生命用盡！');
     } else if (target.type === 'SPECIAL') {
-      // 1：加時間
       timeLeft += 5;
       timeText.textContent = timeLeft;
       playSound('bonus');
@@ -470,11 +469,11 @@
   });
   window.addEventListener('mouseup', () => { isPointerDown = false; });
 
-  // 生成水果波次
+  // 生成水果波次 (間隔微調為 85 幀，節奏更舒適)
   let spawnTimer = 0;
   function updateSpawning() {
     spawnTimer++;
-    if (spawnTimer % 65 === 0) {
+    if (spawnTimer % 85 === 0) {
       const batchCount = 1 + Math.floor(Math.random() * 2);
       for (let i = 0; i < batchCount; i++) {
         targets.push(new Target());
@@ -489,7 +488,6 @@
     if (gameState === 'PLAYING') {
       updateSpawning();
 
-      // 更新與繪製目標
       for (let i = targets.length - 1; i >= 0; i--) {
         const t = targets[i];
         t.update();
@@ -499,7 +497,6 @@
         }
       }
 
-      // 更新粒子
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.update();
@@ -507,7 +504,6 @@
         if (p.alpha <= 0) particles.splice(i, 1);
       }
 
-      // 繪製滑動軌跡
       const now = Date.now();
       slashTrail = slashTrail.filter(pt => now - pt.time < 150);
       if (slashTrail.length > 1) {
